@@ -1,0 +1,26 @@
+{
+  "fullName": "John Doe",
+  "username": "johndoe",
+  "subscribersCount": 2,
+  "subscribedToCount": 1,
+  "isSubscribed": true,
+  "email": "john.doe@example.com",
+  "avatar": "https://example.com/avatar.jpg",
+  "coverImage": "https://example.com/cover.jpg",
+  "subscribedTo": [
+    {
+      "_id": "channel2Id",
+      "username": "channel2"
+    }
+  ],
+  "subscribers": [
+    {
+      "_id": "user2Id",
+      "username": "user2"
+    },
+    {
+      "_id": "user3Id",
+      "username": "user3"
+    }
+  ]
+}
