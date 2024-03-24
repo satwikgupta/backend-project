@@ -31,7 +31,7 @@ const registerUser = asyncHandler(async (req, res) => {
   remove password and refresh_token field from response
   check for user creation
   return response
-*/
+  */
 
   if (Object.keys(req.body).length === 0) {
     throw new ApiError(400, "No data provided");
@@ -290,6 +290,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Error uploading avatar.");
   }
 
+  deleteFileFromCloudinary(req.user?.avatar);
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -298,7 +299,6 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password");
 
-  deleteFileFromCloudinary(req.user?.avatar);
 
   return res
     .status(200)

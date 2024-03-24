@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from "cloudinary";
+import { extractPublicId } from "cloudinary-build-url";
 import fs from "fs";
 
 cloudinary.config({
@@ -10,16 +11,14 @@ cloudinary.config({
 const uploadOnCloudinary = async (localFilePath) => {
   try {
     if (!localFilePath) {
-      // console.log("File not found !");
       return;
     }
+    
     //upload file on cloudinary
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
     });
-
     //file has been uploaded successfully
-    // console.log("File is uploaded on cloudinary successfully!! ", response.url);
 
     fs.unlinkSync(localFilePath);
     return response;
@@ -30,16 +29,19 @@ const uploadOnCloudinary = async (localFilePath) => {
     return null;
   }
 };
-//http://res.cloudinary.com/dacndab9l/image/upload/v1711034477/if51vew9qidiamv1bm3q.jpg
+
+
 const deleteFileFromCloudinary = async (url) => {
   try {
     if (!url) {
       return;
     }
-    const regex = /\/upload\/v[0-9]+\/(.+?)\.(jpg|jpeg|png|gif)/;
-    const match = url.match(regex);
-    const publicId = match ? match[1] : null;
-    return await cloudinary.uploader.destroy(publicId);
+
+    const publicId = extractPublicId(url);
+    //http://res.cloudinary.com/dacndab9l/image/upload/v1711034477/if51vew9qidiamv1bm3q.jpg
+    const response = await cloudinary.uploader.destroy(publicId);
+
+    return response;
   } catch (error) {
     return null;
   }
