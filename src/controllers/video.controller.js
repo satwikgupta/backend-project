@@ -4,22 +4,19 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import {
+  deleteFileFromCloudinary,
+  uploadOnCloudinary,
+} from "../utils/cloudinary.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
-
+  const { page = 1, limit = 10, sortBy = 'title', sortType, userId = req.user._id } = req.query;
+  console.log('limit: ',limit ,  "sortBy: ", sortBy, "sortType: ", sortType, "userId: ", userId);
+  
   const pipeline = [
-    // Filter by userId (optional)
     {
       $match: {
-        userId: { $eq: userId }, // Replace with actual userId if needed
-      },
-    },
-    // Text search based on query (optional)
-    {
-      $match: {
-        $text: { $search: query }, // Replace with actual query string if needed
+        owner: new mongoose.Types.ObjectId(userId),
       },
     },
     // Sorting based on sortBy and sortType
@@ -33,7 +30,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
       $skip: (page - 1) * limit, // Offset for pagination
     },
     {
-      $limit: limit, // Number of documents to return
+      $limit: Number(limit), // Number of documents to return
     },
     {
       $lookup: {
@@ -54,14 +51,13 @@ const getAllVideos = asyncHandler(async (req, res) => {
     },
   ];
 
-  try {
-    const videos = await Video.collection("videos").aggregate(pipeline);
-    return res
-      .status(200)
-      .json(new ApiResponse(200, videos, "Videos fetched successfully!"));
-  } catch (error) {
-    return new ApiError(404, "Error while fetching videos!");
+  const videos = await Video.aggregate(pipeline);
+  if (!videos?.length) { 
+    throw new ApiError(404, "No videos found");
   }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, videos, "Videos fetched successfully!"));
 });
 
 const publishAVideo = asyncHandler(async (req, res) => {
@@ -113,20 +109,66 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: get video by id
+  if (!videoId || !isValidObjectId(videoId)) {
+    throw new ApiError(400, "Video id is required");
+  }
+
+  const video = await Video.findById(videoId);
+
+  return res.status(200).json(new ApiResponse(200, video, "Video found!"));
 });
 
 const updateVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: update video details like title, description, thumbnail
+
+  const { title, description } = req.body;
+  if ([title, description].some((field) => field?.trim() === "")) {
+    throw new ApiError(400, "All fields are required!");
+  }
+
+  const thumbnail = req.file[0]?.path;
+
+  if (!thumbnail) {
+    throw new ApiError(400, "No thumbnail provided");
+  }
+
+  const video = await Video.findById(videoId);
+  const oldThumbnail = video.thumbnail;
+  deleteFileFromCloudinary(oldThumbnail);
+
+  const thumbnailUrl = await uploadOnCloudinary(thumbnail);
+  if (!thumbnailUrl) {
+    throw new ApiError(400, "Error while uploading thumbnail");
+  }
+
+  video.title = title;
+  video.description = description;
+  video.thumbnail = thumbnailUrl.url;
+
+  const updatedVideo = await video.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedVideo, "Video updated successfully!"));
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   //TODO: delete video
+  await Video.findByIdAndDelete(videoId);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Video deleted Successfully!"));
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {
   const { videoId } = req.params;
+  //TODO: toggle publish status
+
+  const video = await Video.findById(videoId);
+  video.isPublished = video.isPublished === "true" ? "false" : "true";
 });
 
 export {
